@@ -3,15 +3,23 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-A command-line tool that analyzes GigaVUE-HC2 configuration files and generates migration recommendations for modern Gigamon hardware platforms (TA25E, HC1-Plus, HC3).
+A command-line tool that analyzes GigaVUE-HC2 configuration files and generates migration recommendations for modern Gigamon hardware platforms with accurate SKU-based Bill of Materials.
 
 ## Features
 
-- 📊 **Automatic Hardware Recommendation** - Analyzes port usage, GigaSMART, and 1G requirements
-- 🗺️ **Port Mapping** - Maps existing ports to new platform with CSV export
-- 📐 **ASCII Diagrams** - Visual representation of the new configuration
-- 📋 **Bill of Materials** - Hardware list with part numbers for quoting
-- 🔄 **JSON Export** - Machine-readable output for automation
+- 🤖 **AI-Powered Analysis** - Uses Claude or GPT for intelligent recommendations
+- 📊 **Multiple Platform Support** - TA25, TA25E, TA100, TA200, TA400, HC1-Plus, HC3
+- 📋 **Accurate BOM** - Real Gigamon SKUs with quantities
+- 🗺️ **Port Mapping** - Maps existing ports to new platform
+- 📐 **ASCII Diagrams** - Visual representation for documentation
+- 📁 **Multiple Exports** - TXT, CSV, JSON formats
+
+## Two Versions Available
+
+| Script | Description | AI Required |
+|--------|-------------|-------------|
+| `migrate_hc2.py` | Rule-based analysis | No |
+| `migrate_hc2_ai.py` | AI-enhanced analysis | Yes (Claude/OpenAI) |
 
 ## Installation
 
@@ -20,27 +28,37 @@ git clone https://github.com/min-hsao/gigamon-migration-tool.git
 cd gigamon-migration-tool
 ```
 
-No external dependencies required - uses Python 3.8+ standard library only.
+For AI-enhanced version, set API key:
+```bash
+export ANTHROPIC_API_KEY="your-key"  # For Claude
+# OR
+export OPENAI_API_KEY="your-key"     # For OpenAI
+```
 
 ## Quick Start
 
+### Basic (Rule-Based)
 ```bash
-# Generate all reports
 python3 migrate_hc2.py /path/to/show_diag.log
+```
 
-# Specify output directory
-python3 migrate_hc2.py /path/to/show_diag.log --output-dir ./reports
+### AI-Enhanced
+```bash
+python3 migrate_hc2_ai.py /path/to/show_diag.log --ai-provider claude
+python3 migrate_hc2_ai.py /path/to/show_diag.log --ai-provider openai
+```
 
-# Generate specific format only
-python3 migrate_hc2.py /path/to/show_diag.log --format ascii
-python3 migrate_hc2.py /path/to/show_diag.log --format bom
-python3 migrate_hc2.py /path/to/show_diag.log --format csv
-python3 migrate_hc2.py /path/to/show_diag.log --format json
+### Options
+```bash
+python3 migrate_hc2_ai.py config.log \
+    --output-dir ./reports \
+    --ai-provider claude \
+    --verbose
 ```
 
 ## How to Capture HC2 Configuration
 
-On your GigaVUE-HC2, run these commands and save the output to a file:
+On your GigaVUE-HC2, run these commands and save the output:
 
 ```
 enable
@@ -57,127 +75,87 @@ show gsop all
 show gsgroup all
 ```
 
-Save all output to a text file (e.g., `my-hc2-config.log`) and use as input.
-
 ## Output Files
 
-| File | Description | Use Case |
-|------|-------------|----------|
-| `*_migration_diagram.txt` | ASCII diagram of new configuration | Documentation, quick reference |
-| `*_port_mapping.csv` | Port-by-port mapping table | Import to Visio, Lucidchart, Excel |
-| `*_bill_of_materials.txt` | Hardware BOM with part numbers | Quote requests, procurement |
-| `*_migration.json` | Complete migration data | Automation, API integration |
+| File | Description |
+|------|-------------|
+| `*_bom.txt` | Formatted Bill of Materials |
+| `*_bom.csv` | CSV for Excel/procurement |
+| `*_diagram.txt` | ASCII diagram |
+| `*_migration.json` | Full data for automation |
+
+## Sample BOM Output
+
+```
+==========================================================================================
+                                     BILL OF MATERIALS                                    
+                           Migration from gig-lax-gcs02 (CHS-HC2)                         
+                                   Target: GigaVUE-TA200                                  
+==========================================================================================
+
+  Item  SKU                  Description                              Qty   Notes          
+  ----- -------------------- ---------------------------------------- ----- ---------------
+  1     GVS-TA200            GigaVUE-TA200                            1     Chassis        
+  2     LIC-TA200-IBP        Inline Bypass Protection License         1     For inline     
+  3     SFP-531              10G SFP+ SR Transceiver                  48    Adjust as needed
+  4     QSF-507              100G QSFP28 SR4 Transceiver              4     Optional uplink
+  5     PWR-AC-TA200         AC Power Supply                          2     Redundant pair 
+
+==========================================================================================
+```
 
 ## Platform Recommendation Logic
 
-| Condition | Recommended Platform |
-|-----------|---------------------|
-| ≤48 ports, no GigaSMART, no 1G | **GigaVUE-TA25E + IBP License** |
-| ≤48 ports, no GigaSMART, has 1G | **GigaVUE-TA25E** (with media converters) or **HC1-Plus** |
-| Any ports with GigaSMART | **GigaVUE-HC3** or **HC1-Plus** with GS license |
-| >48 ports | **GigaVUE-HC3** with multiple modules |
+| Ports | GigaSMART | 1G Copper | Recommended Platform |
+|-------|-----------|-----------|---------------------|
+| ≤48 | No | No | **TA25E** |
+| ≤48 | No | Yes | **TA25E** + converters or **HC1-Plus** |
+| 49-72 | No | Any | **TA200** |
+| Any | Yes | No | **HC1-Plus** or **HC3** |
+| Any | Yes | Yes | **HC3** with TAP module |
+| >72 | Any | Any | **HC3** with modules |
 
-## Example Output
+## Supported Platforms
 
-```
-============================================================
-MIGRATION SUMMARY
-============================================================
-Source Device: gig-lax-gcs02 (CHS-HC2)
-Recommended Platform: GigaVUE-TA25E
-Total Ports to Migrate: 40
-GigaSMART Required: No
-1G Ports Present: Yes
+### Source (End of Sale)
+- GigaVUE-HC2
 
-Recommended Modules/Licenses:
-  • Base: 48x SFP28 (10G/25G) + 8x QSFP28 (100G)
-  • IBP License (for inline bypass protection)
-  • ⚠️  1G copper ports require: media converters OR external 1G TAPs
-  
-  ─── ALTERNATIVE OPTION ───
-  • GigaVUE-HC1-Plus (if native 1G TAP needed)
-============================================================
-```
+### Target (Current)
+- GigaVUE-TA25 / TA25E
+- GigaVUE-TA100
+- GigaVUE-TA200 / TA200E
+- GigaVUE-TA400
+- GigaVUE-HC1-Plus
+- GigaVUE-HC3
 
-### Sample ASCII Diagram
+## Product Database
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  GigaVUE-TA25E                                                   │
-│  Migrated from: gig-lax-gcs02                                    │
-├──────────────────────────────────────────────────────────────────┤
-│  INLINE NETWORKS                                                 │
-│  ──────────────────────────────────────                          │
-│  [P1-P2: Cisco9K-A]  [P3-P4: Cisco9K-B]                         │
-│                                                                  │
-│  INLINE TOOLS (Active)                                           │
-│  ──────────────────────────────────────                          │
-│  [P5-P6: IPS-A]  [P7-P8: PA-GCS01]  [P9-P10: VMSandvine]        │
-│                                                                  │
-│  OUT-OF-BAND NETWORK PORTS                                       │
-│  ──────────────────────────────────────                          │
-│  [P31: SW-SERVICE]  [P32: jun-lax]  [P33: from-gcs01]           │
-│                                                                  │
-│  SPARE PORTS: P41-P48 | Q1-Q8 (100G QSFP28)                     │
-└──────────────────────────────────────────────────────────────────┘
-```
+The `gigamon_products.py` file contains:
+- Platform specifications and SKUs
+- Module options for modular platforms
+- License SKUs
+- Transceiver options
+- Power supply SKUs
 
-### Sample Bill of Materials
-
-```
-================================================================================
-                                BILL OF MATERIALS                               
-================================================================================
-
-  Item  Part Number               Description                              Qty  
-  ----- ------------------------- ---------------------------------------- -----
-  1     GVS-TA25E                 GigaVUE-TA25E Chassis                    1    
-  2     GVS-TA25E-IBP             Inline Bypass Protection License         1    
-  3     SFP-532                   10G SFP+ SR Transceiver                  40   
-  4     PWR-AC-TA25E              AC Power Supply (Redundant)              2    
-
-================================================================================
-```
-
-## Supported Source Platforms
-
-- GigaVUE-HC2 (CHS-HC2)
-- GigaVUE-HC2 with various line cards:
-  - SMT-HC0-X16 (16x 10G SFP+)
-  - TAP-HC0-G100C0 (1G Copper TAP)
-  - PRT-HC0-X24 (24x 10G SFP+)
-
-## Target Platforms
-
-- **GigaVUE-TA25E** - 1U, 48x SFP28 + 8x QSFP28, ideal for ≤48 ports
-- **GigaVUE-HC1-Plus** - 1U modular, built-in ports + expansion slot
-- **GigaVUE-HC3** - 3U modular, for large deployments or GigaSMART
+Update this file when new products are released.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions welcome! Please:
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## Roadmap
-
-- [ ] Support for HC1 source devices
-- [ ] Support for TA series source devices
-- [ ] Draw.io XML export for diagrams
-- [ ] Interactive mode for manual adjustments
-- [ ] Web interface
+2. Create a feature branch
+3. Submit a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE)
 
 ## Disclaimer
 
-This tool provides recommendations based on configuration analysis. Always verify recommendations with Gigamon documentation and your account team before making purchasing decisions. Part numbers are representative and should be confirmed with current Gigamon pricing.
+- Part numbers are representative and should be verified with Gigamon
+- Pricing requires current Gigamon quote
+- This tool provides recommendations; always consult Gigamon SE for complex deployments
 
 ## Author
 
