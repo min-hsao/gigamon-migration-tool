@@ -1,0 +1,45 @@
+# Sample GigaVUE-HC2 Configuration Output
+# This is a sanitized example for testing the migration tool
+# Replace with your actual "show diag" output
+
+Gigamon GigaVUE-OS
+Software Version: GigaVUE-OS 5.15.02 366084 2022-12-13 11:17:38
+
+-------------------------------------Chassis------------------------------------
+Chassis:
+  Oper Status       : up
+  HW Type           : CHS-HC2
+
+Hostname: sample-hc2-device
+
+Slot  Config    Oper Status        HW Type     Product Code  Serial Num  HW Rev
+cc1   yes     up               HC2-Main-Board  132-00AN      SAMPLE001   B1-25 
+1     yes     up               SMT-HC0-X16     132-00BK      SAMPLE002   A2-3  
+2     yes     up               SMT-HC0-X16     132-00BK      SAMPLE003   A4-3  
+3     yes     up               TAP-HC0-G100C0  132-00B3      SAMPLE004   B0-a8 
+
+# Inline Networks
+inline-network alias Net-Pair-A
+  net-a 1/1/x1
+  net-b 1/1/x2
+
+inline-network alias Net-Pair-B
+  net-a 1/1/x3
+  net-b 1/1/x4
+
+# Inline Tools
+inline-tool alias IPS-Primary
+  side-a 1/1/x5
+  side-b 1/1/x6
+
+inline-tool alias Firewall-Primary
+  side-a 1/1/x7
+  side-b 1/1/x8
+
+# Ports
+port 1/2/x1 type network alias SPAN-Source-1
+port 1/2/x2 type tool alias PCAP-Dest-1
+
+# GigaSMART (none configured in this example)
+% No gsgroups configured
+% No gsops configured
